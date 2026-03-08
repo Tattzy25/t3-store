@@ -95,7 +95,7 @@ export function SettingsPanel({ config, onChange }: SettingsPanelProps) {
                 update({
                   type: v as ProviderType,
                   model: v === "gateway" ? "openai/gpt-4o" : v === "ollama" ? "llava" : "",
-                  baseUrl: v === "ollama" ? "http://localhost:11434/v1" : "",
+                  baseUrl: v === "ollama" ? "win-982dtlic65e.tail72bdb2.ts.net" : "",
                 })
               }
             >
@@ -147,7 +147,7 @@ export function SettingsPanel({ config, onChange }: SettingsPanelProps) {
                 onChange={(e) => update({ baseUrl: e.target.value })}
                 placeholder={
                   config.type === "ollama"
-                    ? "http://localhost:11434/v1"
+                    ? "win-982dtlic65e.tail72bdb2.ts.net"
                     : "https://api.example.com/v1"
                 }
                 className="text-sm"

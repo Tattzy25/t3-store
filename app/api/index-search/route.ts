@@ -73,36 +73,54 @@ export async function POST(request: NextRequest) {
       token: searchToken,
     })
 
-    const index = client.index<SearchContent, SearchMetadata>("img-base")
+    const index = client.index<SearchContent, SearchMetadata>("gallery")
 
-    await index.upsert([
-      {
-        id,
-        content: {
-          sku: sku || "",
-          productUrl: productUrl || "",
-          title: title || "",
-          tags: tags || "",
-          shortDescription: shortDescription || "",
-          dimensions: dimensions || "",
-          mood: mood || "",
-          style: style || "",
-          color: color || "",
-        },
-        metadata: {
-          seoTitle: seoTitle || "",
-          seoDescription: seoDescription || "",
-          body: bodyText || "",
-          imageAltText: imageAltText || "",
-          prompt: prompt || "",
-        },
-      },
-    ])
+    // Retry logic for upsert
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-    return NextResponse.json({ success: true, id })
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await index.upsert([
+          {
+            id,
+            content: {
+              sku: sku || "",
+              productUrl: productUrl || "",
+              title: title || "",
+              tags: tags || "",
+              shortDescription: shortDescription || "",
+              dimensions: dimensions || "",
+              mood: mood || "",
+              style: style || "",
+              color: color || "",
+            },
+            metadata: {
+              seoTitle: seoTitle || "",
+              seoDescription: seoDescription || "",
+              body: bodyText || "",
+              imageAltText: imageAltText || "",
+              prompt: prompt || "",
+            },
+          },
+        ]);
+
+        return NextResponse.json({ success: true, id });
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error("Unknown error during upsert");
+        console.error(`Upsert attempt ${attempt} failed:`, lastError.message);
+        
+        if (attempt === maxRetries) {
+          throw lastError; // Re-throw after all retries
+        }
+        
+        // Wait before retry (exponential backoff optional, simple delay here)
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
   } catch (error) {
-    console.error("Search indexing error:", error)
-    const message = error instanceof Error ? error.message : "Indexing failed"
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error("Search indexing error:", error);
+    const message = error instanceof Error ? error.message : "Indexing failed after retries";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

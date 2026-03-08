@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     } else if (providerType === "ollama") {
       const ollamaProvider = createOpenAICompatible({
         name: "ollama",
-        baseURL: baseUrl || "http://localhost:11434/v1",
+        baseURL: baseUrl || "win-982dtlic65e.tail72bdb2.ts.net",
       })
       const modelName = model.startsWith("ollama/") ? model.slice(7) : model
       modelRef = ollamaProvider(modelName)
