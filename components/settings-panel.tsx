@@ -102,7 +102,7 @@ export function SettingsPanel({ config, onChange }: SettingsPanelProps) {
                   baseUrl: v === "ollama" ? OLLAMA_DEFAULT_BASE_URL : v === "custom" ? OPENAI_DEFAULT_BASE_URL : "",
                   apiKey: "",
                 })
-              }
+              }>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
