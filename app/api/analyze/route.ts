@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       // Custom OpenAI-compatible provider
       const customProvider = createOpenAICompatible({
         name: "custom",
-        baseURL: baseUrl,
+        baseURL: baseUrl || "",
         apiKey: apiKey || undefined,
       })
       modelRef = customProvider(model)

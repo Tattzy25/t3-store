@@ -47,6 +47,10 @@ const TONE_OPTIONS: ToneOption[] = [
   "marketing",
 ]
 
+const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+const OPENAI_DEFAULT_MODEL = "gpt-4o-mini-2024-07-18"
+const OLLAMA_DEFAULT_BASE_URL = "http://win-982dtlic65e.tail72bdb2.ts.net:11434"
+
 export function SettingsPanel({ config, onChange }: SettingsPanelProps) {
   const [expanded, setExpanded] = useState(false)
 
@@ -94,11 +98,11 @@ export function SettingsPanel({ config, onChange }: SettingsPanelProps) {
               onValueChange={(v) =>
                 update({
                   type: v as ProviderType,
-                  model: v === "gateway" ? "openai/gpt-4o" : v === "ollama" ? "gemma3:4b" : "",
-                  baseUrl: "http://win-982dtlic65e.tail72bdb2.ts.net:11434",
+                  model: v === "gateway" ? "openai/gpt-4o" : v === "ollama" ? "gemma3:4b" : v === "custom" ? OPENAI_DEFAULT_MODEL : "",
+                  baseUrl: v === "ollama" ? OLLAMA_DEFAULT_BASE_URL : v === "custom" ? OPENAI_DEFAULT_BASE_URL : "",
+                  apiKey: "",
                 })
               }
-            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
