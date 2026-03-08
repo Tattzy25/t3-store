@@ -64,7 +64,7 @@ export default function Page() {
       // Mark as processing
       setImages((prev) =>
         prev.map((item) =>
-          item.id === img.id ? { ...item, status: "processing" as const } : item
+          item.id === img.id ? { ...item, status: "processing" as const, currentStepMessage: "Generating AI Analysis & SEO..." } : item
         )
       )
 
@@ -96,6 +96,11 @@ export default function Page() {
         const data = await response.json()
 
         // Step 2: Upload image to T3 using presigned URL
+        setImages((prev) =>
+          prev.map((item) =>
+            item.id === img.id ? { ...item, currentStepMessage: "Uploading Image..." } : item
+          )
+        )
         let blobUrl: string | undefined
         try {
           const title = data.result?.title || img.file.name
@@ -138,12 +143,17 @@ export default function Page() {
           const { getUrl } = await getResponse.json()
           blobUrl = getUrl
         } catch (error) {
-          console.warn(`T3 upload error for ${img.file.name}:`, error)
+
         }
 
         // Step 3: Index to Upstash Search with image URL + metadata
         let searchIndexId: string | undefined
         if (blobUrl && data.result) {
+          setImages((prev) =>
+            prev.map((item) =>
+              item.id === img.id ? { ...item, currentStepMessage: "Indexing Search..." } : item
+            )
+          )
           try {
             const indexResponse = await fetch("/api/index-search", {
               method: "POST",
@@ -152,13 +162,13 @@ export default function Page() {
                 id: img.id,
                 imageUrl: blobUrl,
                 filename: img.file.name,
-                title: data.result.title || "",
-                tags: data.result.tags || "",
-                shortDescription: data.result.shortDescription || "",
-                colorScheme: data.result.colorScheme || "",
-                mood: data.result.mood || "",
-                style: data.result.style || "",
-                dimensions: data.result.dimensions || "",
+                title: data.result.title,
+                tags: data.result.tags,
+                shortDescription: data.result.shortDescription,
+                colorScheme: data.result.colorScheme,
+                mood: data.result.mood,
+                style: data.result.style,
+                dimensions: data.result.dimensions,
               }),
             })
 
@@ -166,10 +176,10 @@ export default function Page() {
               const indexData = await indexResponse.json()
               searchIndexId = indexData.id
             } else {
-              console.warn(`Search indexing failed for ${img.file.name}`)
+
             }
           } catch {
-            console.warn(`Search indexing error for ${img.file.name}`)
+
           }
         }
 
@@ -179,6 +189,7 @@ export default function Page() {
               ? {
                   ...item,
                   status: "complete" as const,
+                  currentStepMessage: undefined,
                   result: data.result,
                   blobUrl,
                   searchIndexId,
@@ -191,7 +202,7 @@ export default function Page() {
         setImages((prev) =>
           prev.map((item) =>
             item.id === img.id
-              ? { ...item, status: "error" as const, error: message }
+              ? { ...item, status: "error" as const, error: message, currentStepMessage: undefined }
               : item
           )
         )

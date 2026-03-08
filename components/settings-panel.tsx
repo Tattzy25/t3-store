@@ -94,8 +94,8 @@ export function SettingsPanel({ config, onChange }: SettingsPanelProps) {
               onValueChange={(v) =>
                 update({
                   type: v as ProviderType,
-                  model: v === "gateway" ? "openai/gpt-4o" : v === "ollama" ? "llava" : "",
-                  baseUrl: v === "ollama" ? "win-982dtlic65e.tail72bdb2.ts.net" : "",
+                  model: v === "gateway" ? "openai/gpt-4o" : v === "ollama" ? "gemma3:4b" : "",
+                  baseUrl: "http://win-982dtlic65e.tail72bdb2.ts.net:11434",
                 })
               }
             >
@@ -132,7 +132,7 @@ export function SettingsPanel({ config, onChange }: SettingsPanelProps) {
               <Input
                 value={config.model}
                 onChange={(e) => update({ model: e.target.value })}
-                placeholder={config.type === "ollama" ? "llava" : "model-name"}
+                placeholder={config.type === "ollama" ? "gemma3:4b" : "model-name"}
                 className="text-sm"
               />
             )}
@@ -147,8 +147,8 @@ export function SettingsPanel({ config, onChange }: SettingsPanelProps) {
                 onChange={(e) => update({ baseUrl: e.target.value })}
                 placeholder={
                   config.type === "ollama"
-                    ? "win-982dtlic65e.tail72bdb2.ts.net"
-                    : "https://api.example.com/v1"
+                    ? "http://win-982dtlic65e.tail72bdb2.ts.net:11434"
+                    : ""
                 }
                 className="text-sm"
               />

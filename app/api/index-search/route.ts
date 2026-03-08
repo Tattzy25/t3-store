@@ -61,12 +61,6 @@ export async function POST(request: NextRequest) {
     const searchUrl = process.env.UPSTASH_SEARCH_REST_URL
     const searchToken = process.env.UPSTASH_SEARCH_REST_TOKEN
 
-    if (!searchUrl || !searchToken) {
-      return NextResponse.json(
-        { error: "Upstash Search credentials not configured" },
-        { status: 500 }
-      )
-    }
 
     const client = new Search({
       url: searchUrl,
@@ -85,22 +79,22 @@ export async function POST(request: NextRequest) {
           {
             id,
             content: {
-              sku: sku || "",
-              productUrl: productUrl || "",
-              title: title || "",
-              tags: tags || "",
-              shortDescription: shortDescription || "",
-              dimensions: dimensions || "",
-              mood: mood || "",
-              style: style || "",
-              color: color || "",
+              sku: sku,
+              productUrl: productUrl,
+              title: title,
+              tags: tags,
+              shortDescription: shortDescription,
+              dimensions: dimensions,
+              mood: mood,
+              style: style,
+              color: color,
             },
             metadata: {
-              seoTitle: seoTitle || "",
-              seoDescription: seoDescription || "",
-              body: bodyText || "",
-              imageAltText: imageAltText || "",
-              prompt: prompt || "",
+              seoTitle: seoTitle,
+              seoDescription: seoDescription,
+              body: bodyText,
+              imageAltText: imageAltText,
+              prompt: prompt,
             },
           },
         ]);

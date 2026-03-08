@@ -13,6 +13,8 @@ export function ProcessingProgress({ images, currentIndex }: ProcessingProgressP
   const total = images.length
   const completed = images.filter((img) => img.status === "complete" || img.status === "error").length
   const isProcessing = images.some((img) => img.status === "processing")
+  const currentImage = images[currentIndex]
+  const currentMessage = currentImage?.currentStepMessage
 
   if (!isProcessing && completed === 0) return null
 
@@ -27,7 +29,7 @@ export function ProcessingProgress({ images, currentIndex }: ProcessingProgressP
           <span className="text-sm font-medium text-foreground">
             {allDone
               ? `All ${total} images processed`
-              : `Processing image ${currentIndex + 1} of ${total}...`}
+              : currentMessage || `Processing image ${currentIndex + 1} of ${total}...`}
           </span>
         </div>
         <span className="text-xs text-muted-foreground">

@@ -30,13 +30,34 @@ export async function POST(request: NextRequest) {
     const ext = getExtension(filename)
     const slug = title ? slugify(title) : slugify(filename.replace(/\.[^/.]+$/, ""))
     const timestamp = Date.now()
-    const key = `img-base/${slug}-${timestamp}${ext}`
+    const key = `${slug}-${timestamp}${ext}`
 
-    const putUrl = await generatePresignedPutUrl(key)
+    // Retry logic for presigned URL generation
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    let putUrl: string | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        putUrl = await generatePresignedPutUrl(key);
+        break; // Success, exit loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error("Unknown error during presigned URL generation");
+        console.error(`Presigned URL attempt ${attempt} failed:`, lastError.message);
+        
+        if (attempt === maxRetries) {
+          throw lastError; // Re-throw after all retries
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
 
     return NextResponse.json({ putUrl, key })
   } catch (error) {
-    console.error("Presigned PUT error:", error)
-    return NextResponse.json({ error: "Failed to generate presigned URL" }, { status: 500 })
+    console.error("Presigned PUT error:", error);
+    const message = error instanceof Error ? error.message : "Failed to generate presigned URL after retries";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

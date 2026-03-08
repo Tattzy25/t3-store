@@ -38,7 +38,7 @@ export function exportToCSV(
     const values = [
       ...enabledOutputs.map((field) => {
         const val = img.result?.[field]
-        return escapeCSV(String(val ?? ""))
+        return escapeCSV(String(val))
       }),
     ]
     return values.join(",")

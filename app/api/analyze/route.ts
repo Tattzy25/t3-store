@@ -9,6 +9,8 @@ import type { OutputField, ToneOption } from "@/lib/types"
 
 
 
+const JSON_INSTRUCTION_PROMPT = "Return your response as a JSON object, matching the provided schema. Do NOT include any other text or formatting."
+
 export const maxDuration = 60
 
 const TONE_PROMPTS: Record<ToneOption, string> = {
@@ -50,6 +52,7 @@ export async function POST(req: Request) {
     systemMessage,
     TONE_PROMPTS[tone],
     `Only generate the following fields: ${outputFieldsStr}. Leave unused fields as empty strings or empty arrays.`,
+    JSON_INSTRUCTION_PROMPT,
   ].join("\n\n")
 
   try {
@@ -61,15 +64,12 @@ export async function POST(req: Request) {
     } else if (providerType === "ollama") {
       const ollamaProvider = createOpenAICompatible({
         name: "ollama",
-        baseURL: baseUrl || "win-982dtlic65e.tail72bdb2.ts.net",
+        baseURL: "http://win-982dtlic65e.tail72bdb2.ts.net:11434",
       })
       const modelName = model.startsWith("ollama/") ? model.slice(7) : model
       modelRef = ollamaProvider(modelName)
     } else {
       // Custom OpenAI-compatible provider
-      if (!baseUrl) {
-        return Response.json({ error: "Base URL is required for custom providers" }, { status: 400 })
-      }
       const customProvider = createOpenAICompatible({
         name: "custom",
         baseURL: baseUrl,
@@ -78,67 +78,107 @@ export async function POST(req: Request) {
       modelRef = customProvider(model)
     }
 
-    // First call: Initial analysis with Agent Prompter
-    const { output: initialOutput } = await generateText({
-      model: modelRef,
-      output: Output.object({
-        schema: imageAnalysisSchema,
-      }),
-      messages: [
-        {
-          role: "system",
-          content: fullSystemMessage,
-        },
-        {
-          role: "user",
-          content: [
+    // First call: Initial analysis with Agent Prompter - with retry
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    let initialOutput: any = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { output } = await generateText({
+          model: modelRef,
+          output: Output.object({
+            schema: imageAnalysisSchema,
+          }),
+          messages: [
             {
-              type: "text",
-              text: userMessage,
+              role: "system",
+              content: fullSystemMessage,
             },
             {
-              type: "image",
-              image: imageBase64,
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: userMessage,
+                },
+                {
+                  type: "image",
+                  image: imageBase64,
+                },
+              ],
             },
           ],
-        },
-      ],
-    })
+        });
+        initialOutput = output;
+        break; // Success, exit loop
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error("Unknown error during initial analysis");
+        console.error(`Initial analysis attempt ${attempt} failed:`, lastError.message);
+        
+        if (attempt === maxRetries) {
+          throw lastError; // Re-throw after all retries
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
 
-    // Second call: SEO generation with Agent SEO, using initial analysis for context and including image
+    // Second call: SEO generation with Agent SEO, using initial analysis for context and including image - with retry
     const analysisJson = JSON.stringify(initialOutput, null, 2)
     const seoUserPromptText = `${AGENT_SEO_USER_MESSAGE}\n\nReference analysis from Agent Prompter:\n${analysisJson}`
 
     const fullSeoSystemMessage = [
       AGENT_SEO_SYSTEM_PROMPT,
       TONE_PROMPTS[tone],
+      JSON_INSTRUCTION_PROMPT,
     ].join("\n\n")
 
-    const { output: seoOutput } = await generateText({
-      model: modelRef,
-      output: Output.object({
-        schema: seoSchema,
-      }),
-      messages: [
-        {
-          role: "system",
-          content: fullSeoSystemMessage,
-        },
-        {
-          role: "user",
-          content: [
+    let lastErrorSeo: Error | null = null;
+    let seoOutput: any = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { output } = await generateText({
+          model: modelRef,
+          output: Output.object({
+            schema: seoSchema,
+          }),
+          messages: [
             {
-              type: "text",
-              text: seoUserPromptText,
+              role: "system",
+              content: fullSeoSystemMessage,
             },
             {
-              type: "image",
-              image: imageBase64,
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: seoUserPromptText,
+                },
+                {
+                  type: "image",
+                  image: imageBase64,
+                },
+              ],
             },
           ],
-        },
-      ],
-    })
+        });
+        seoOutput = output;
+        break; // Success, exit loop
+      } catch (error) {
+        lastErrorSeo = error instanceof Error ? error : new Error("Unknown error during SEO generation");
+        console.error(`SEO generation attempt ${attempt} failed:`, lastErrorSeo.message);
+        
+        if (attempt === maxRetries) {
+          throw lastErrorSeo; // Re-throw after all retries
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
 
     // Merge outputs
     const mergedOutput = {
@@ -146,14 +186,32 @@ export async function POST(req: Request) {
       ...seoOutput,
     }
 
-    // Generate presigned PUT URL after Agent SEO completion
+    // Generate presigned PUT URL after Agent SEO completion - with retry
     const titleForKey = seoOutput.seoTitle || initialOutput.title || "design"
     const ext = mediaType.split('/')[1] || 'png'
     const slug = titleForKey.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80)
     const timestamp = Date.now()
-    const key = `img-base/${slug}-${timestamp}.${ext}`
+    const key = `${slug}-${timestamp}.${ext}`
 
-    const putUrl = await generatePresignedPutUrl(key)
+    let lastErrorPut: Error | null = null;
+    let putUrl: string | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        putUrl = await generatePresignedPutUrl(key);
+        break; // Success, exit loop
+      } catch (error) {
+        lastErrorPut = error instanceof Error ? error : new Error("Unknown error during presigned URL generation");
+        console.error(`Presigned URL attempt ${attempt} failed:`, lastErrorPut.message);
+        
+        if (attempt === maxRetries) {
+          throw lastErrorPut; // Re-throw after all retries
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
 
     // Filter merged output to only enabled fields
     const allFields: OutputField[] = [
@@ -165,7 +223,7 @@ export async function POST(req: Request) {
     for (const field of allFields) {
       if (enabledOutputs.includes(field)) {
         const val = mergedOutput[field]
-        filtered[field] = val ?? ""
+        filtered[field] = val
       } else {
         filtered[field] = ""
       }
@@ -175,7 +233,18 @@ export async function POST(req: Request) {
 
 
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Analysis failed"
-    return Response.json({ error: message }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
+    console.error("Analysis API error:", error);
+    return Response.json(
+      {
+        error: "Internal Server Error during analysis",
+        details: errorMessage,
+        stack: errorStack,
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 }
+    );
   }
 }

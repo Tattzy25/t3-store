@@ -7,8 +7,9 @@ export interface ImageFile {
   status: ImageStatus
   result?: ImageAnalysisResult
   error?: string
-  blobUrl?: string
+  imageUrl?: string
   searchIndexId?: string
+  currentStepMessage?: string
 }
 
 export interface ImageAnalysisResult {
